@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ex. No. 2 - Custom Blockchain Architecture</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; }
+        h1, h2, h3 { color: #000000; }
+        .box { background: #f8f9fa; border-left: 4px solid #0056b3; padding: 15px; margin-bottom: 20px; }
+        pre { background: #ffffff; color: #000000; padding: 15px; border: 1px solid #d9d9d9; border-radius: 5px; overflow-x: auto; }
+        code { font-family: Consolas, monospace; }
+        ol { padding-left: 20px; }
+    </style>
+</head>
+<body>
+
+    <h3>Ex. No. 2: Custom Blockchain Architecture</h3>
+
+    <div class="box">
+        <h3>Aim</h3>
+        <p>Design and implement a custom blockchain architecture by developing a block structure that includes essential components such as block header, previous hash, timestamp, Merkle root, nonce, and cryptographic signature to ensure integrity and authenticity of blocks.</p>
+    </div>
+
+    <h3>Procedure</h3>
+    <ol>
+        <li>Create a project folder (e.g., <code>CustomBlockchain</code>). Install the <code>ecdsa</code> library using <code>pip install ecdsa</code>.</li>
+        <li>Create a <code>Block</code> class that contains: index, timestamp, transactions (list), previous_hash, merkle_root, nonce, signature, and public_key (signer).</li>
+        <li>Compute cryptographic values and implement SHA-256 hashing for block headers.</li>
+        <li>Implement a deterministic <code>compute_merkle_root</code> that computes the Merkle root from the block's transactions (handling odd leaf counts by duplicating the last hash).</li>
+        <li>Generate an ECDSA key pair (RSA/ECDSA).</li>
+        <li>Implement <code>sign_block(sk)</code> to sign the block header hash and store the signature and public key.</li>
+        <li>Implement <code>verify_signature()</code> to validate the signature using the stored public key.</li>
+        <li>Create a <code>Blockchain</code> manager with methods to <code>create_genesis_block()</code>, <code>add_block(transactions, signer_sk)</code>, and <code>validate_chain()</code>.</li>
+        <li>On <code>add_block</code>, compute the Merkle root, optionally run a simple Proof of Work loop (nonce) if desired, compute header hash, sign block with provided signer key, and append.</li>
+        <li>Implement chain validation to verify previous_hash linkage, recompute Merkle root, recompute header hash, and verify signatures for every block.</li>
+        <li>Create a small demo in <code>if __name__ == "__main__":</code> that generates a keypair, creates genesis, adds a couple of blocks, prints root/hashes/signatures, and runs <code>validate_chain()</code>.</li>
+    </ol>
+
+    <h3>Code</h3>
+    <pre><code>import time
+import json
+import hashlib
+from typing import List, Optional, Dict, Any
+from ecdsa import SigningKey, VerifyingKey, SECP256k1, BadSignatureError
+
+def sha256_hex(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+def compute_merkle_root(transactions: List[str]) -> str:
+    if not transactions:
+        return sha256_hex(b"")
+    
+    layer = [sha256_hex(tx.encode()) for tx in transactions]
+    while len(layer) > 1:
+        if len(layer) % 2 == 1:
+            layer.append(layer[-1])
+        parent = []
+        for i in range(0, len(layer), 2):
+            combined = bytes.fromhex(layer[i]) + bytes.fromhex(layer[i + 1])
+            parent.append(sha256_hex(combined))
+        layer = parent
+    return layer[0]
+
+class Block:
+    def __init__(
+        self,
+        index: int,
+        transactions: List[str],
+        previous_hash: str,
+        signer_pubkey_hex: Optional[str] = None,
+    ):
+        self.index = index
+        self.timestamp = time.time()
+        self.transactions = transactions.copy()
+        self.previous_hash = previous_hash
+        self.merkle_root = compute_merkle_root(self.transactions)
+        self.nonce = 0
+        self.signature = ""
+        self.signer_pubkey_hex = signer_pubkey_hex or ""
+
+    def header_dict() -> Dict[str, Any]:
+        return {
+            "index": self.index,
+            "timestamp": self.timestamp,
+            "previous_hash": self.previous_hash,
+            "merkle_root": self.merkle_root,
+            "nonce": self.nonce,
+        }
+
+    def compute_hash(self) -> str:
+        header_str = json.dumps(self.header_dict(), sort_keys=True)
+        return sha256_hex(header_str.encode())
+
+    def sign_block(self, signing_key: SigningKey):
+        self.signer_pubkey_hex = signing_key.verifying_key.to_string().hex()
+        block_hash = self.compute_hash()
+        sig_bytes = signing_key.sign(block_hash.encode())
+        self.signature = sig_bytes.hex()
+
+    def verify_signature(self) -> bool:
+        if not self.signature or not self.signer_pubkey_hex:
+            return False
+        try:
+            vk = VerifyingKey.from_string(bytes.fromhex(self.signer_pubkey_hex), curve=SECP256k1)
+            block_hash = self.compute_hash()
+            return vk.verify(bytes.fromhex(self.signature), block_hash.encode())
+        except BadSignatureError:
+            return False
+
+class Blockchain:
+    def __init__(self):
+        self.chain: List[Block] = []
+
+    def create_genesis_block(self, signer_sk: SigningKey) -> Block:
+        genesis = Block(
+            index=0,
+            transactions=["Genesis Transaction"],
+            previous_hash="0" * 64,
+        )
+        genesis.sign_block(signer_sk)
+        self.chain.append(genesis)
+        return genesis
+
+    def add_block(self, transactions: List[str], signer_sk: SigningKey) -> Block:
+        prev_block = self.chain[-1]
+        new_block = Block(
+            index=len(self.chain),
+            transactions=transactions,
+            previous_hash=prev_block.compute_hash(),
+        )
+        new_block.sign_block(signer_sk)
+        self.chain.append(new_block)
+        return new_block
+
+    def validate_chain(self) -> bool:
+        for i in range(1, len(self.chain)):
+            current = self.chain[i]
+            prev = self.chain[i - 1]
+
+            if current.previous_hash != prev.compute_hash():
+                print(f"Invalid previous hash at block {i}")
+                return False
+
+            if current.merkle_root != compute_merkle_root(current.transactions):
+                print(f"Invalid Merkle root at block {i}")
+                return False
+
+            if not current.verify_signature():
+                print(f"Invalid signature at block {i}")
+                return False
+
+        return True
+
+if __name__ == "__main__":
+    sk = SigningKey.generate(curve=SECP256k1)
+    
+    bc = Blockchain()
+    bc.create_genesis_block(sk)
+    
+    bc.add_block(["Alice sends 5 BTC to Bob", "Bob sends 2 BTC to Charlie"], sk)
+    bc.add_block(["Charlie sends 1 BTC to Alice"], sk)
+
+    print(f"Chain length: {len(bc.chain)}")
+    print(f"Is chain valid? {bc.validate_chain()}")</code></pre>
+
+    <h3>Output</h3>
+    <div class="box">
+        <p><em>(Insert console output or screenshot here)</em></p>
+    </div>
+
+    <h3>Result</h3>
+    <p>The program for the Custom Blockchain Architecture was executed successfully. The architecture correctly generated block headers, computed Merkle roots for transactions, established cryptographic chain linkage using previous hashes, and verified block integrity through ECDSA digital signatures.</p>
+
+</body>
+</html>

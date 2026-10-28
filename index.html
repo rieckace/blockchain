@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockchain Lab Viewer</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .nav-links { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #ddd; }
+        .nav-links a { margin-right: 15px; text-decoration: none; color: #060606; font-weight: bold; }
+        .nav-links a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation bar for quick switching -->
+        <div class="nav-links">
+            <strong>Experiments:</strong>
+            <a href="?exp=1">Ex 1</a>
+            <a href="?exp=2">Ex 2</a>
+            <a href="?exp=3">Ex 3</a>
+            <a href="?exp=4">Ex 4</a>
+            <a href="?exp=5">Ex 5</a>
+            <a href="?exp=6">Ex 6</a>
+        </div>
+
+        <!-- Dynamic Content Loader -->
+        <div id="content">Loading Experiment...</div>
+    </div>
+
+    <script>
+        const expPages = {
+            "1": "exp/1.html",
+            "2": "exp/2.html",
+            "3": "exp/3.html",
+            "4": "exp/4.html",
+            "5": "exp/5.html",
+            "6": "exp/6.html"
+        };
+
+        const params = new URLSearchParams(window.location.search);
+        const expId = params.get('exp');
+
+        if (expId && expPages[expId]) {
+            fetch(expPages[expId])
+                .then(res => {
+                    if (!res.ok) throw new Error("File not found");
+                    return res.text();
+                })
+                .then(html => document.getElementById('content').innerHTML = html)
+                .catch(() => document.getElementById('content').innerHTML = "<h3>Experiment page not found. Please check file paths.</h3>");
+        } else {
+            document.getElementById('content').innerHTML = `
+                <h3>Blockchain Technologies Lab Manual</h3>
+                <p>Please select an experiment from the menu above or append <code>?exp=1</code> through <code>?exp=6</code> to the URL.</p>
+            `;
+        }
+    </script>
+</body>
+</html>

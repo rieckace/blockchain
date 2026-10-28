@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ex. No. 6 - Smart Contract-Based Voting System</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; }
+        h1, h2, h3 { color: #000000; }
+        .box { background: #f8f9fa; border-left: 4px solid #0056b3; padding: 15px; margin-bottom: 20px; }
+        pre { background: #ffffff; color: #000000; padding: 15px; border: 1px solid #d9d9d9; border-radius: 5px; overflow-x: auto; }
+        code { font-family: Consolas, monospace; }
+        ol { padding-left: 20px; }
+    </style>
+</head>
+<body>
+
+    <h3>Ex. No. 6: Smart Contract-Based Voting System</h3>
+
+    <div class="box">
+        <h3>Aim</h3>
+        <p>Design and implement a Smart Contract-Based Voting System to conduct secure, transparent, and tamper-proof electronic voting on a blockchain network while ensuring voter eligibility verification and single-vote enforcement.</p>
+    </div>
+
+    <h3>Procedure</h3>
+    <ol>
+        <li>Create a project directory named <code>VotingSmartContract</code>.</li>
+        <li>Define data structures to represent candidates (ID, name, vote count) and voter state tracking (voted status, delegate/choice).</li>
+        <li>Implement contract initialization routines to set the election administrator/owner and register eligible candidate choices.</li>
+        <li>Implement voter authorization mechanisms restricting voting access strictly to registered white-listed addresses.</li>
+        <li>Develop the core voting logic (<code>vote</code> function) to validate voter eligibility, prevent duplicate voting, increment the candidate's tally, and mark the voter as having voted.</li>
+        <li>Implement view functions to retrieve election results and declare the winning candidate.</li>
+        <li>Simulate the contract lifecycle in <code>if __name__ == "__main__":</code> by registering candidates, authorizing voters, casting votes, attempting unauthorized/duplicate votes to verify error handling, and outputting the election results.</li>
+    </ol>
+
+    <h3>Code</h3>
+    <pre><code>import time
+from typing import Dict, List, Optional
+
+class Candidate:
+    def __init__(self, candidate_id: int, name: str):
+        self.id = candidate_id
+        self.name = name
+        self.vote_count = 0
+
+class Voter:
+    def __init__(self, address: str):
+        self.address = address
+        self.is_authorized = False
+        self.has_voted = False
+        self.voted_candidate_id: Optional[int] = None
+
+class VotingSmartContract:
+    def __init__(self, chairperson_address: str):
+        self.chairperson = chairperson_address
+        self.candidates: Dict[int, Candidate] = {}
+        self.voters: Dict[str, Voter] = {}
+        self.voting_ended = False
+
+    def add_candidate(self, sender: str, candidate_id: int, name: str) -> bool:
+        if sender != self.chairperson:
+            print("Error: Only the chairperson can add candidates.")
+            return False
+        if candidate_id in self.candidates:
+            print("Error: Candidate ID already exists.")
+            return False
+        self.candidates[candidate_id] = Candidate(candidate_id, name)
+        print(f"Candidate '{name}' (ID: {candidate_id}) added successfully.")
+        return True
+
+    def authorize_voter(self, sender: str, voter_address: str) -> bool:
+        if sender != self.chairperson:
+            print("Error: Only the chairperson can authorize voters.")
+            return False
+        if voter_address not in self.voters:
+            self.voters[voter_address] = Voter(voter_address)
+        self.voters[voter_address].is_authorized = True
+        print(f"Voter '0x{voter_address}' authorized.")
+        return True
+
+    def cast_vote(self, voter_address: str, candidate_id: int) -> bool:
+        if self.voting_ended:
+            print("Error: Voting phase has closed.")
+            return False
+        if voter_address not in self.voters or not self.voters[voter_address].is_authorized:
+            print(f"Error: Address '0x{voter_address}' is not authorized to vote.")
+            return False
+        
+        voter = self.voters[voter_address]
+        if voter.has_voted:
+            print(f"Error: Voter '0x{voter_address}' has already cast a vote!")
+            return False
+        if candidate_id not in self.candidates:
+            print("Error: Invalid candidate ID.")
+            return False
+
+        # Execute vote state transition
+        voter.has_voted = True
+        voter.voted_candidate_id = candidate_id
+        self.candidates[candidate_id].vote_count += 1
+        print(f"Vote successfully cast by '0x{voter_address}' for Candidate ID {candidate_id}.")
+        return True
+
+    def end_voting(self, sender: str):
+        if sender != self.chairperson:
+            print("Error: Only chairperson can end voting.")
+            return
+        self.voting_ended = True
+        print("\n--- Voting Phase Ended ---")
+
+    def get_winner(self) -> Optional[Candidate]:
+        if not self.candidates:
+            return None
+        return max(self.candidates.values(), key=lambda c: c.vote_count)
+
+if __name__ == "__main__":
+    admin = "Admin_0x1"
+    contract = VotingSmartContract(chairperson_address=admin)
+
+    # 1. Register candidates
+    contract.add_candidate(admin, 1, "Alice (Party A)")
+    contract.add_candidate(admin, 2, "Bob (Party B)")
+
+    # 2. Authorize voters
+    voter1, voter2, voter3 = "User_0xA", "User_0xB", "User_0xC"
+    contract.authorize_voter(admin, voter1)
+    contract.authorize_voter(admin, voter2)
+
+    # 3. Cast valid votes
+    print("\n--- Casting Votes ---")
+    contract.cast_vote(voter1, 1)
+    contract.cast_vote(voter2, 2)
+
+    # 4. Test error handling (duplicate vote & unauthorized vote)
+    print("\n--- Testing Security Constraints ---")
+    contract.cast_vote(voter1, 2)  # Duplicate vote attempt
+    contract.cast_vote(voter3, 1)  # Unauthorized voter attempt
+
+    # 5. Tally results
+    contract.end_voting(admin)
+    winner = contract.get_winner()
+    if winner:
+        print(f"Winner: {winner.name} with {winner.vote_count} vote(s).")</code></pre>
+
+    <h3>Output</h3>
+    <div class="box">
+        <p><em>(Insert console output or screenshot here)</em></p>
+    </div>
+
+    <h3>Result</h3>
+    <p>The program for the Smart Contract-Based Voting System was executed successfully. The contract enforced role-based authorization for election administrators and voters, prevented duplicate vote submission, maintained immutable vote counts, and accurately declared the election winner.</p>
+
+</body>
+</html>

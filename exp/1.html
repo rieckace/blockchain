@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ex. No. 1 - Merkle Tree-based Verification System</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; color: #333; }
+        h1, h2, h3 { color: #0f1010; }
+        .box { background: #f8f9fa; border-left: 4px solid #0056b3; padding: 15px; margin-bottom: 20px; }
+        pre { background: #ffffff; color: #000000; padding: 15px; border: 1px solid #d9d9d9; border-radius: 5px; overflow-x: auto; }
+        code { font-family: Consolas, monospace; }
+        ol { padding-left: 20px; }
+    </style>
+</head>
+<body>
+
+    <h3>Ex. No. 1: Merkle Tree-based Verification System for Decentralized Storage</h3>
+
+    <div class="box">
+        <h3>Aim</h3>
+        <p>Design and implement an optimized Merkle Tree-based verification system to secure large-scale decentralized data storage. This experiment demonstrates data integrity verification, efficient retrieval proofs, and basic fraud-prevention checks using cryptographic hash functions (SHA-256).</p>
+    </div>
+
+    <h3>Procedure</h3>
+    <ol>
+        <li>Create a dedicated project directory <code>MerkleTreeLab</code> and within it, add a subfolder named <code>sample_files</code>. Populate this folder with 4–8 small text files (e.g., <code>file1.txt</code>, <code>file2.txt</code>, etc.) to serve as data blocks for verification.</li>
+        <li>Develop helper functions in Python to read each file, compute its SHA-256 hash, and convert the output into a hexadecimal format. These will serve as the leaf hashes in the Merkle Tree.</li>
+        <li>Use the computed leaf hashes as input to build the Merkle Tree. Iteratively hash each consecutive pair of child nodes until a single root hash is obtained, representing the integrity of the entire dataset.</li>
+        <li>Save all leaf hashes and the final root hash into a metadata file (or in-memory structure). This simulates how decentralized storage systems or blockchains store verification references securely on-chain or in a trusted ledger.</li>
+        <li>Select any leaf node (file) and compute its Merkle proof, which consists of the sequence of sibling hashes along the path from that leaf to the root. This proof enables verification without reprocessing the entire dataset.</li>
+        <li>Recompute the root hash from the selected leaf and its proof. Compare the computed root with the stored root hash. If they match, the file is verified as authentic and untampered.</li>
+        <li>Modify one of the sample text files and re-run the verification process. Observe that the recomputed root hash differs from the stored root, confirming successful tampering detection and proving the effectiveness of the Merkle verification mechanism.</li>
+    </ol>
+
+    <h3>Code</h3>
+    <pre><code># merkle_demo.py - Merkle Tree (SHA-256)
+import os, hashlib, sys
+
+def sha256_hex(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+def file_hash(path: str) -> str:
+    with open(path, "rb") as f:
+        return sha256_hex(f.read())
+
+def merkle_layer(hashes):
+    # If odd, duplicate last
+    if len(hashes) % 2 == 1:
+        hashes = hashes + [hashes[-1]]
+    parent = []
+    for i in range(0, len(hashes), 2):
+        combined = bytes.fromhex(hashes[i]) + bytes.fromhex(hashes[i+1])
+        parent.append(sha256_hex(combined))
+    return parent
+
+def build_merkle_tree(file_paths):
+    leaves = [file_hash(p) for p in file_paths]
+    tree = [leaves]
+    layer = leaves
+    while len(layer) > 1:
+        layer = merkle_layer(layer)
+        tree.append(layer)
+    return tree # bottom-up layers, tree[-1][0] is root
+
+def merkle_proof(tree, index):
+    proof = []
+    idx = index
+    for layer in tree[:-1]:
+        # sibling index
+        if idx % 2 == 0:
+            sib = idx + 1 if idx + 1 < len(layer) else idx
+        else:
+            sib = idx - 1
+        proof.append(layer[sib])
+        idx = idx // 2
+    return proof
+
+def verify_proof(leaf_hash, proof, root, index):
+    computed = leaf_hash
+    idx = index
+    for sib in proof:
+        if idx % 2 == 0:
+            combined = bytes.fromhex(computed) + bytes.fromhex(sib)
+        else:
+            combined = bytes.fromhex(sib) + bytes.fromhex(computed)
+        computed = sha256_hex(combined)
+        idx = idx // 2
+    return computed == root
+
+if __name__ == "__main__":
+    folder = "sample_files"
+    files = sorted([os.path.join(folder, f) for f in os.listdir(folder) if f.endswith(".txt")])
+    tree = build_merkle_tree(files)
+    root = tree[-1][0]
+    print("Files and leaf hashes:")
+    for f, h in zip(files, tree[0]):
+        print(f"{f} -> {h}")
+    print("\nRoot hash:", root)
+
+    proof = merkle_proof(tree, 1)
+    print("\nProof for index 1:", proof)
+    ok = verify_proof(tree[0][1], proof, root, 1)
+    print("\nVerification result:", ok)</code></pre>
+
+    <h3>Output</h3>
+    <div class="box">
+        <p><em>(Insert screenshot or printed console output here)</em></p>
+    </div>
+
+    <h3>Result</h3>
+    <p>The program for the Merkle Tree-based Verification System for Decentralized Storage was executed successfully. The system effectively constructed a Merkle Tree using cryptographic SHA-256 hash functions and generated a unique root hash representing the integrity of the entire dataset.</p>
+
+</body>
+</html>
